@@ -21,7 +21,7 @@ async fn handler(headers: Vec<(String, String)>, _qry: HashMap<String, Value>, _
     // let msg = qry.get("msg").unwrap();
 
     // let resp = format!("Testing Flows Network: This is your message {msg}");
-    let fractal_bytes = match generate_fractal(){
+    let fractal_bytes = match generate_fractal() {
         Ok(bytes) => bytes,
         Err(err) => err.as_bytes().to_vec(),
     };
@@ -33,7 +33,7 @@ async fn handler(headers: Vec<(String, String)>, _qry: HashMap<String, Value>, _
     );
 }
 
-fn generate_fractal() -> Result<Vec<u8>, String> {
+pub fn generate_fractal() -> Result<Vec<u8>, String> {
     const IMG_X: u32 = 800;
     const IMG_Y: u32 = 800;
 
@@ -71,20 +71,11 @@ fn generate_fractal() -> Result<Vec<u8>, String> {
         }
     }
 
-    let buffer = [0u8; IMG_X as usize * IMG_Y as usize];
-    let cursor_buffer = Cursor::new(buffer); // needed to implement Seek
-    let mut stream = BufWriter::new(cursor_buffer);
-    
-    match write_buffer_with_format(
-        &mut stream,
-        imgbuf.as_bytes(),
-        IMG_X,
-        IMG_Y,
-        ColorType::Rgb8,
-        ImageOutputFormat::Png,
-    ){
-        Ok(_) => Ok(stream.buffer().to_vec()),
+    let vec = Vec::new();
+    let mut cursor_buffer = Cursor::new(vec); // needed to implement Seek
+
+    match imgbuf.write_to(&mut cursor_buffer, ImageOutputFormat::Png) {
+        Ok(_) => Ok(cursor_buffer.into_inner()),
         Err(err) => Err(format!("Error writing Image {err}")),
     }
-
 }
