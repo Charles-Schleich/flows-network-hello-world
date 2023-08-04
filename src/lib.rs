@@ -27,9 +27,14 @@ async fn handler(headers: Vec<(String, String)>, qry: HashMap<String, Value>, _b
     if dim > 5000 {
         dim = 5000;
     }
+
     let (re, im) = match (
-        qry.get("re").and_then(|x| x.as_f64()),
-        qry.get("im").and_then(|x| x.as_f64()),
+        qry.get("re")
+            .and_then(|x| x.as_str())
+            .and_then(|x| x.parse().ok()),
+        qry.get("im")
+            .and_then(|x| x.as_str())
+            .and_then(|x| x.parse().ok()),
     ) {
         (Some(re), Some(im)) => (re, im),
         _ => {
