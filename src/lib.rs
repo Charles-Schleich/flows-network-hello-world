@@ -5,6 +5,7 @@ use image::ImageOutputFormat;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::io::Cursor;
+use std::str::FromStr;
 
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
@@ -14,28 +15,29 @@ pub async fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Handler Function for Http Requests
+/// Expecting: re:f64, im:f64
+/// Optional : dim:u64
+/// example: http://code.flows.network/lambda/<TOKEN>?re=-0.55&im=0.55&dim=100
+
 async fn handler(headers: Vec<(String, String)>, qry: HashMap<String, Value>, _body: Vec<u8>) {
     logger::init();
     log::info!("Headers -- {:?}", headers);
 
-    // Parse params
-    // Expecting: re:f64, im:f64
-    // Optional : dim:u64
-    let mut dim = qry.get("dim").and_then(|x| x.as_u64()).unwrap_or(500) as u32;
+    fn url_param<T: FromStr>(query_name: &str, qry: &HashMap<String, Value>) -> Option<T> {
+        qry.get(query_name)
+            .and_then(|x| x.as_str())
+            .and_then(|x| x.parse().ok())
+    }
+
+    let mut dim = url_param::<u32>("dim", &qry).unwrap_or(500) as u32;
     // Requests become too long for large images
     // Also large images can generate large amounts of data
     if dim > 5000 {
         dim = 5000;
     }
 
-    let (re, im) = match (
-        qry.get("re")
-            .and_then(|x| x.as_str())
-            .and_then(|x| x.parse().ok()),
-        qry.get("im")
-            .and_then(|x| x.as_str())
-            .and_then(|x| x.parse().ok()),
-    ) {
+    let (re, im) = match (url_param::<f64>("re", &qry), url_param::<f64>("im", &qry)) {
         (Some(re), Some(im)) => (re, im),
         _ => {
             send_response(
