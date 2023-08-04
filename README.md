@@ -1,8 +1,8 @@
 # Flow function Fractal PNG Generator
 
 Url Params:
-    Expected: `re:f64,` `im:f64`
-    Optional : `dim:u64`
+    Expected: `re:f64,` `im:f64`  
+    Optional : `dim:u64`  
 
 Running in a browser
 ```

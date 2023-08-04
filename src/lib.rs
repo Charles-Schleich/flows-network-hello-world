@@ -43,7 +43,7 @@ async fn handler(headers: Vec<(String, String)>, qry: HashMap<String, Value>, _b
             send_response(
                 400,
                 vec![(String::from("content-type"), String::from("text/html"))],
-                "Expecting request to have params for real and imaginary values \n e.g. url?re=-0.55&?im=0.55".to_string().as_bytes().to_vec(),
+                "Expecting request to have params for real and imaginary values \n e.g. url?re=-0.55&im=0.55".to_string().as_bytes().to_vec(),
             );
             return;
         }
