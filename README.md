@@ -1,22 +1,16 @@
-# Getting started with a simple flow function
+# Flow function Fractal PNG Generator
 
-This flow function exposes a HTTP endpoint. You can submit any data to the endpoint via HTTP POST and the flow function will echo it back to you in the HTTP response.
+Url Params:
+    Expected: `re:f64,` `im:f64`
+    Optional : `dim:u64`
 
-1. Fork this repo into your own GitHub account.
-2. Go to [Flows.network](https://flows.network/flow/new) to create a new flow.
-3. Import the forked repo from your account into flows.network.
-4. Build and deploy.
-5. You will now get a URL endpoint to access the flow function. It is under the *Lambda Endpoint* section on the flows.network web site. You can test it as follows.
-
-The example below shows how to query a flow function we have already deployed.
-You can type the following URL into any browser's address bar:
-
+Running in a browser
 ```
-https://code.flows.network/lambda/j4DPFGufPr?msg=I+am+a+Rustacean
+https://code.flows.network/lambda/IoXMd4dCiQ?re=-0.55&im=0.53&dim=200
 ```
 
 Or, you can use the `curl` command to access the flow function.
 
 ```
-curl https://code.flows.network/lambda/j4DPFGufPr?msg=I+am+a+Rustacean
+curl "https://code.flows.network/lambda/IoXMd4dCiQ?re=-0.55&im=0.53&dim=200" > fractal.png
 ```
