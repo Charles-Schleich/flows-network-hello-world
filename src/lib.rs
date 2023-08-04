@@ -1,10 +1,10 @@
 use flowsnet_platform_sdk::logger;
 use lambda_flows::{request_received, send_response};
 
-use image::{write_buffer_with_format, ColorType, EncodableLayout, ImageOutputFormat};
+use image::ImageOutputFormat;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::io::{BufWriter, Cursor};
+use std::io::Cursor;
 
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
@@ -14,65 +14,75 @@ pub async fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn handler(headers: Vec<(String, String)>, _qry: HashMap<String, Value>, _body: Vec<u8>) {
+async fn handler(headers: Vec<(String, String)>, qry: HashMap<String, Value>, _body: Vec<u8>) {
     logger::init();
     log::info!("Headers -- {:?}", headers);
 
-    // let msg = qry.get("msg").unwrap();
+    // Parse params
+    // Expecting: re:f64, im:f64
+    // Optional : dim:u64
+    let mut dim = qry.get("dim").and_then(|x| x.as_u64()).unwrap_or(500) as u32;
+    // Requests become too long for large images
+    // Also large images can generate large amounts of data
+    if dim > 5000 {
+        dim = 5000;
+    }
+    let (re, im) = match (
+        qry.get("re").and_then(|x| x.as_f64()),
+        qry.get("im").and_then(|x| x.as_f64()),
+    ) {
+        (Some(re), Some(im)) => (re, im),
+        _ => {
+            send_response(
+                400,
+                vec![(String::from("content-type"), String::from("text/html"))],
+                "Expecting request to have params for real and imaginary values \n e.g. url?re=-0.55&?im=0.55".to_string().as_bytes().to_vec(),
+            );
+            return;
+        }
+    };
 
-    // let resp = format!("Testing Flows Network: This is your message {msg}");
-    let fractal_bytes = match generate_fractal() {
+    // Generate Fractal
+    let fractal_bytes = match generate_fractal(dim, re, im) {
         Ok(bytes) => bytes,
         Err(err) => err.as_bytes().to_vec(),
     };
 
     send_response(
         200,
-        vec![(String::from("content-type"), String::from("text/html"))],
+        vec![(String::from("content-type"), String::from("image/png"))],
         fractal_bytes,
     );
 }
 
-pub fn generate_fractal() -> Result<Vec<u8>, String> {
-    const IMG_X: u32 = 800;
-    const IMG_Y: u32 = 800;
+pub fn generate_fractal(img_dim: u32, re: f64, im: f64) -> Result<Vec<u8>, String> {
+    let scale = 3.0 / img_dim as f64;
 
-    let scalex = 3.0 / IMG_X as f32;
-    let scaley = 3.0 / IMG_Y as f32;
-
-    // Create a new ImgBuf with width: imgx and height: imgy
-    let mut imgbuf = image::ImageBuffer::new(IMG_X, IMG_Y);
+    // Create a new ImgBuf with width and height: img_dim
+    let mut imgbuf = image::ImageBuffer::new(img_dim, img_dim);
 
     // Iterate over the coordinates and pixels of the image
     for (x, y, pixel) in imgbuf.enumerate_pixels_mut() {
-        let r = (0.3 * x as f32) as u8;
-        let b = (0.3 * y as f32) as u8;
-        *pixel = image::Rgb([r, 0, b]);
-    }
+        let b = (0.3 * y as f64) as u8;
 
-    // A redundant loop to demonstrate reading image data
-    for x in 0..IMG_X {
-        for y in 0..IMG_Y {
-            let cx = y as f32 * scalex - 1.5;
-            let cy = x as f32 * scaley - 1.5;
+        let cx: f64 = y as f64 * scale - 1.5;
+        let cy: f64 = x as f64 * scale - 1.5;
+        let c = num_complex::Complex::new(re, im);
+        let mut z = num_complex::Complex::new(cx, cy);
 
-            let c = num_complex::Complex::new(-0.4, 0.6);
-            let mut z = num_complex::Complex::new(cx, cy);
-
-            let mut i = 0;
-            while i < 255 && z.norm() <= 2.0 {
-                z = z * z + c;
-                i += 1;
-            }
-
-            let pixel = imgbuf.get_pixel_mut(x, y);
-            let image::Rgb(data) = *pixel;
-            *pixel = image::Rgb([data[0], i as u8, data[2]]);
+        let mut g = 0;
+        while g < 255 && z.norm() <= 2.0 {
+            z = z * z + c;
+            g += 1;
         }
+        let r: u8 = g;
+
+        *pixel = image::Rgb([r, g, b]);
     }
 
     let vec = Vec::new();
-    let mut cursor_buffer = Cursor::new(vec); // needed to implement Seek
+    // Cursor needed to implement Seek
+    let mut cursor_buffer = Cursor::new(vec);
 
     match imgbuf.write_to(&mut cursor_buffer, ImageOutputFormat::Png) {
         Ok(_) => Ok(cursor_buffer.into_inner()),
